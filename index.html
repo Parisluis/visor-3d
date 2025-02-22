@@ -6,7 +6,6 @@
     <title>Prueba de Three.js</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -14,62 +13,60 @@
 </head>
 <body>
     <script>
-        // Crear escena, cámara y renderizador
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000); // Fondo negro
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Activar sombras
         document.body.appendChild(renderer.domElement);
 
-        // Agregar luz ambiental y direccional
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        // Luz ambiental para iluminar todo el modelo
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Aumentamos la intensidad
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 5, 5);
+        // Luz direccional con sombra
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(5, 10, 5); // Colocamos la luz en un ángulo
+        directionalLight.castShadow = true; // Activamos sombras
         scene.add(directionalLight);
 
-        // Controles para mover la vista con el mouse
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Suaviza el movimiento
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.maxPolarAngle = Math.PI / 2;
+        // Crear un suelo para proyectar sombras
+        const planeGeometry = new THREE.PlaneGeometry(500, 500);
+        const planeMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = -1;
+        plane.receiveShadow = true;
+        scene.add(plane);
 
-        // Cargar el modelo 3D
+        // Cargar modelo GLB
         const loader = new THREE.GLTFLoader();
         loader.load('model.glb', function(gltf) {
             const model = gltf.scene;
-            scene.add(model);
-
-            // Centrar el modelo
-            model.position.set(0, -0.5, 0);
+            model.position.set(0, 0, 0);
             model.scale.set(1, 1, 1);
-
-            // Ajustar cámara automáticamente para ver el modelo completo
-            const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxSize = Math.max(size.x, size.y, size.z);
-            camera.position.set(center.x, center.y, maxSize * 2);
-            camera.lookAt(center);
-            controls.target.set(center.x, center.y, center.z);
-            controls.update();
-
+            model.traverse(node => {
+                if (node.isMesh) {
+                    node.castShadow = true; // Que el modelo proyecte sombra
+                    node.receiveShadow = true;
+                }
+            });
+            scene.add(model);
             console.log("Modelo cargado correctamente");
         }, undefined, function(error) {
             console.error('Error al cargar el modelo', error);
         });
 
-        // Animar la escena
+        camera.position.set(0, 2, 5); // Ajustamos la cámara para mejor vista
+
         function animate() {
             requestAnimationFrame(animate);
-            controls.update();
             renderer.render(scene, camera);
         }
         animate();
 
-        // Ajustar tamaño al cambiar la ventana
         window.addEventListener('resize', () => {
             renderer.setSize(window.innerWidth, window.innerHeight);
             camera.aspect = window.innerWidth / window.innerHeight;
