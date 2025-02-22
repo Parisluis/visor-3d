@@ -6,6 +6,7 @@
     <title>Prueba de Three.js</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -13,33 +14,62 @@
 </head>
 <body>
     <script>
+        // Crear escena, cámara y renderizador
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.AmbientLight(0xffffff, 1);
-        scene.add(light);
+        // Agregar luz ambiental y direccional
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
 
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // Controles para mover la vista con el mouse
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Suaviza el movimiento
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.maxPolarAngle = Math.PI / 2;
+
+        // Cargar el modelo 3D
         const loader = new THREE.GLTFLoader();
         loader.load('model.glb', function(gltf) {
-            scene.add(gltf.scene);
-            gltf.scene.position.set(0, 0, 0);
-            gltf.scene.scale.set(1, 1, 1);
+            const model = gltf.scene;
+            scene.add(model);
+
+            // Centrar el modelo
+            model.position.set(0, -0.5, 0);
+            model.scale.set(1, 1, 1);
+
+            // Ajustar cámara automáticamente para ver el modelo completo
+            const box = new THREE.Box3().setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxSize = Math.max(size.x, size.y, size.z);
+            camera.position.set(center.x, center.y, maxSize * 2);
+            camera.lookAt(center);
+            controls.target.set(center.x, center.y, center.z);
+            controls.update();
+
             console.log("Modelo cargado correctamente");
         }, undefined, function(error) {
             console.error('Error al cargar el modelo', error);
         });
 
-        camera.position.z = 3;
-
+        // Animar la escena
         function animate() {
             requestAnimationFrame(animate);
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
 
+        // Ajustar tamaño al cambiar la ventana
         window.addEventListener('resize', () => {
             renderer.setSize(window.innerWidth, window.innerHeight);
             camera.aspect = window.innerWidth / window.innerHeight;
